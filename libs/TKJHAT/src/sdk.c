@@ -77,14 +77,14 @@ void init_hat_sdk(){
  *  BUTTONS
  * ========================= */
 
- void init_sw1() {
+void init_sw1() {
     // Initialize the button pin as an input with a pull-up resistor
     gpio_init(SW1_PIN);
     gpio_set_dir(SW1_PIN, GPIO_IN);
 
 }
 
- void init_sw2() {
+void init_sw2() {
     // Initialize the button pin as an input with a pull-up resistor
     gpio_init(SW2_PIN);
     gpio_set_dir(SW2_PIN, GPIO_IN);

@@ -14,11 +14,34 @@
 #define DEFAULT_STACK_SIZE 2048
 #define CDC_ITF_TX      1
 
+uint8_t print_flag = 0;
+uint8_t space_counter = 0;
+
 struct gyro_accel_data{
-        float accel_x, accel_y, accel_z;
-        float gyro_x, gyro_y, gyro_z;
-        float temp;
+    float accel_x, accel_y, accel_z;
+    float gyro_x, gyro_y, gyro_z;
+    float temp;
 }data;
+
+struct message_struct{
+    char message[DEFAULT_STACK_SIZE];
+    uint16_t index;
+};
+
+struct message_struct buffer = {"",0};
+
+uint8_t getSymbol(){
+    ICM42670_read_sensor_data(&data.accel_x, &data.accel_y, &data.accel_z, &data.gyro_x, &data.gyro_y, &data.gyro_z, &data.temp);
+    if (data.accel_x > 0.5){
+        return 1; //dot
+    }
+    if(data.accel_x > -0.3 && data.accel_x<0.3){
+        return 2; //dash
+    }
+    return 255; //invalid position, should not be process in that case
+    
+}
+
 
 static uint32_t last_press_time_sw1 = 0;
 static uint32_t last_press_time_sw2 = 0;
@@ -27,12 +50,25 @@ static uint32_t last_press_time_sw2 = 0;
 enum state { WAITING=1};
 enum state programState = WAITING;
 
-void confirmPos(void) {
-    printf("Button 1 pressed with debounce\n");
+void confirmPos() {
+    uint8_t symbol = getSymbol();
+    if(symbol == 255){
+        rgb_led_write(25,0,0);
+        printf("symbol not recognize\n");
+    }else{
+        rgb_led_write(0,25,0);
+        switch(symbol){
+            case 1 : buffer.message[buffer.index] = '-'; break;
+            case 2 : buffer.message[buffer.index] = '.'; break;
+            default : printf("c'est la merde");
+        }buffer.index ++;
+        
+    }
+    
 }
 
-void addSpace(void) {
-    printf("Button 2 pressed with debounce\n");
+void addSpace() {
+    print_flag = 1;
 }
 
 static void sw_callback(uint gpio, uint32_t eventMask) {
@@ -68,11 +104,8 @@ static void sensor_task(void *arg){
    
     for(;;){
 
-        //read sensor values and write them to global structure
-        ICM42670_read_sensor_data(&data.accel_x, &data.accel_y, &data.accel_z, &data.gyro_x, &data.gyro_y, &data.gyro_z, &data.temp);
 
-    
-        //printf("sensorTask\n");
+        
         // Do not remove this
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -83,12 +116,14 @@ static void print_task(void *arg){
     
     while(1){
     
-    printf("gyro test: %.2f, %.2f, %.2f | %.2f, %.2f, %.2f | %.2f\n", data.accel_x, data.accel_y, data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
+    //printf("gyro test: %.2f, %.2f, %.2f | %.2f, %.2f, %.2f | %.2f\n", data.accel_x, data.accel_y, data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
+    if(print_flag==1){
+        for(int i  = 0; i<buffer.index; i++){
+            printf("%c",buffer.message[i]);
+        }printf("\n");
+        print_flag = 0;
+    }
 
-
-
-    
-    //printf("printTask\n");
     // Do not remove this
     vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -131,7 +166,9 @@ int main() {
     init_hat_sdk();
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
 
-
+    //init rgb led
+    init_rgb_led();
+    rgb_led_write(0,0,0);
     //init button 
     init_sw1();
     init_sw2();
