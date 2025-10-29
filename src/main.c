@@ -10,7 +10,7 @@
 
 #include "tkjhat/sdk.h"
 
-
+#define DEBOUNCE_DELAY 100 //ms
 #define DEFAULT_STACK_SIZE 2048
 #define CDC_ITF_TX      1
 
@@ -20,16 +20,44 @@ struct gyro_accel_data{
         float temp;
 }data;
 
+static uint32_t last_press_time_sw1 = 0;
+static uint32_t last_press_time_sw2 = 0;
+
 
 enum state { WAITING=1};
 enum state programState = WAITING;
 
+void confirmPos(void) {
+    printf("Button 1 pressed with debounce\n");
+}
 
-static void btn_fxn(uint gpio, uint32_t eventMask) {
+void addSpace(void) {
+    printf("Button 2 pressed with debounce\n");
+}
 
+static void sw_callback(uint gpio, uint32_t eventMask) {
+    //get current time to compare the time between 2 interrupt with DEBOUNCE_DELAY to avoid switch bounce
+    uint32_t curr_time = to_ms_since_boot(get_absolute_time()); 
 
+    if (gpio == SW1_PIN && (eventMask & GPIO_IRQ_EDGE_FALL)) {
+        //only process the interrupt if the delay since the last interrupt for the same button
+         if (curr_time - last_press_time_sw1 > DEBOUNCE_DELAY) {
+            last_press_time_sw1 = curr_time;
+            confirmPos(); 
+        }
+    } 
+    else if (gpio == SW2_PIN && (eventMask & GPIO_IRQ_EDGE_FALL)) {
+        if (curr_time - last_press_time_sw2 > DEBOUNCE_DELAY) {
+            last_press_time_sw2 = curr_time;
+            addSpace(); 
+        }
+        
+    }
 
 }
+
+    
+
 
 static void sensor_task(void *arg){
     (void)arg;
@@ -95,22 +123,23 @@ int main() {
     stdio_init_all();
 
     // Uncomment this lines if you want to wait till the serial monitor is connected
-    /*while (!stdio_usb_connected()){
+    while (!stdio_usb_connected()){
         sleep_ms(10);
-    }*/ 
+    }
+    
     
     init_hat_sdk();
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
 
-    // Exercise 1: Initialize the button and the led and define an register the corresponding interrupton.
-    //             Interruption handler is defined up as btn_fxn
-    // Tehtävä 1:  Alusta painike ja LEd ja rekisteröi vastaava keskeytys.
-    //             Keskeytyskäsittelijä on määritelty yläpuolella nimellä btn_fxn
+
+    //init button 
+    init_sw1();
+    init_sw2();
+
+    gpio_set_irq_enabled_with_callback(SW1_PIN, GPIO_IRQ_EDGE_FALL, true, &sw_callback);
+    gpio_set_irq_enabled(SW2_PIN, GPIO_IRQ_EDGE_FALL, true);
 
 
-
-    
-    
     TaskHandle_t hSensorTask, hPrintTask, hUSB = NULL;
 
     // Exercise 4: Uncomment this xTaskCreate to create the task that enables dual USB communication.

@@ -90,13 +90,6 @@ void init_hat_sdk(){
     gpio_set_dir(SW2_PIN, GPIO_IN);
 }
 
-void init_button1(){
-    return init_sw1();
-}
-
-void init_button2(){
-    return init_sw2();
-}
 
 /* =========================
  *  LEDs
