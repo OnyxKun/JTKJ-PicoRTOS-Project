@@ -18,6 +18,11 @@
 #define DEFAULT_STACK_SIZE 2048
 #define CDC_ITF_TX      1
 
+struct gyro_accel_data{
+        float accel_x, accel_y, accel_z;
+        float gyro_x, gyro_y, gyro_z;
+        float temp;
+}data;
 
 // Tehtävä 3: Tilakoneen esittely Add missing states.
 // Exercise 3: Definition of the state machine. Add missing states.
@@ -39,6 +44,9 @@ static void sensor_task(void *arg){
     (void)arg;
     // Tehtävä 2: Alusta valoisuusanturi. Etsi SDK-dokumentaatiosta sopiva funktio.
     // Exercise 2: Init the light sensor. Find in the SDK documentation the adequate function.
+    init_ICM42670();
+    ICM42670_start_with_default_values();
+    ICM42670_enable_accel_gyro_ln_mode();
    
     for(;;){
         
@@ -46,10 +54,11 @@ static void sensor_task(void *arg){
         //             
         // Exercise 2: Modify with application code here. Comment following line.
         //             Read sensor data and print it out as string; 
-        tight_loop_contents(); 
+        //tight_loop_contents(); 
 
+        ICM42670_read_sensor_data(&data.accel_x, &data.accel_y, &data.accel_z, &data.gyro_x, &data.gyro_y, &data.gyro_z, &data.temp);
 
-   
+        
 
 
         // Tehtävä 3:  Muokkaa aiemmin Tehtävässä 2 tehtyä koodia ylempänä.
@@ -86,7 +95,7 @@ static void print_task(void *arg){
         // Exercise 3: Print out sensor data as string to debug window if the state is correct
         //             Remember to modify state
         //             Do not forget to comment next line of code.
-        tight_loop_contents();
+        //tight_loop_contents();
         
 
 
@@ -113,7 +122,7 @@ static void print_task(void *arg){
         // Exercise 3. Just for sanity check. Please, comment this out
         // Tehtävä 3: Just for sanity check. Please, comment this out
         printf("printTask\n");
-        
+        printf("gyro test: %.2f, %.2f, %.2f | %.2f, %.2f, %.2f | %.2f\n", data.accel_x, data.accel_y, data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
         // Do not remove this
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
