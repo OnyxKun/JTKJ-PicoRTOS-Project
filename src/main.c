@@ -68,7 +68,21 @@ void confirmPos() {
 }
 
 void addSpace() {
-    print_flag = 1;
+    
+    buffer.message[buffer.index] = ' ';
+    if(buffer.message[buffer.index-1] == ' '){
+        space_counter++;
+        printf("test\n");
+    }else {
+        space_counter = 0;
+    }
+    
+    buffer.index ++;
+    if(space_counter >= 2){
+        print_flag=1;
+        space_counter = 0;
+    }
+    
 }
 
 static void sw_callback(uint gpio, uint32_t eventMask) {
@@ -116,16 +130,15 @@ static void print_task(void *arg){
     
     while(1){
     
-    //printf("gyro test: %.2f, %.2f, %.2f | %.2f, %.2f, %.2f | %.2f\n", data.accel_x, data.accel_y, data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
-    if(print_flag==1){
-        for(int i  = 0; i<buffer.index; i++){
-            printf("%c",buffer.message[i]);
-        }printf("\n");
-        print_flag = 0;
-    }
+        if(print_flag==1){
+
+            printf("%.*s\n", buffer.index, buffer.message);
+            print_flag = 0;
+            buffer.index = 0;
+        }
 
     // Do not remove this
-    vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
