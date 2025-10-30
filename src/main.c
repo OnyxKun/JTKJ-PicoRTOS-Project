@@ -14,8 +14,16 @@
 #define DEFAULT_STACK_SIZE 2048
 #define CDC_ITF_TX      1
 
-uint8_t print_flag = 0;
+
 uint8_t space_counter = 0;
+
+//use for debounce
+static uint32_t last_press_time_sw1 = 0;
+static uint32_t last_press_time_sw2 = 0;
+
+//state machine 
+enum state { WAITING=1,GET_SYMBOL, SENDING};
+enum state programState = WAITING;
 
 struct gyro_accel_data{
     float accel_x, accel_y, accel_z;
@@ -30,41 +38,24 @@ struct message_struct{
 
 struct message_struct buffer = {"",0};
 
-uint8_t getSymbol(){
+char getSymbol(){
     ICM42670_read_sensor_data(&data.accel_x, &data.accel_y, &data.accel_z, &data.gyro_x, &data.gyro_y, &data.gyro_z, &data.temp);
+    //dash if turn to the right
     if (data.accel_x > 0.5){
-        return 1; //dot
+        return '-'; 
     }
+    //dot if horizontal
     if(data.accel_x > -0.3 && data.accel_x<0.3){
-        return 2; //dash
+        return '.';
     }
-    return 255; //invalid position, should not be process in that case
+    return '0'; //invalid position, should not be process in that case
     
 }
 
 
-static uint32_t last_press_time_sw1 = 0;
-static uint32_t last_press_time_sw2 = 0;
-
-
-enum state { WAITING=1};
-enum state programState = WAITING;
 
 void confirmPos() {
-    uint8_t symbol = getSymbol();
-    if(symbol == 255){
-        rgb_led_write(25,0,0);
-        printf("symbol not recognize\n");
-    }else{
-        rgb_led_write(0,25,0);
-        switch(symbol){
-            case 1 : buffer.message[buffer.index] = '-'; break;
-            case 2 : buffer.message[buffer.index] = '.'; break;
-            default : printf("c'est la merde");
-        }buffer.index ++;
-        
-    }
-    
+    programState = GET_SYMBOL;
 }
 
 void addSpace() {
@@ -72,14 +63,13 @@ void addSpace() {
     buffer.message[buffer.index] = ' ';
     if(buffer.message[buffer.index-1] == ' '){
         space_counter++;
-        printf("test\n");
     }else {
         space_counter = 0;
     }
     
     buffer.index ++;
     if(space_counter >= 2){
-        print_flag=1;
+        programState = SENDING;
         space_counter = 0;
     }
     
@@ -115,26 +105,37 @@ static void sensor_task(void *arg){
     init_ICM42670();
     ICM42670_start_with_default_values();
     ICM42670_enable_accel_gyro_ln_mode();
+    char symbol = '0';
    
     for(;;){
 
-
-        
-        // Do not remove this
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        if (programState == GET_SYMBOL){
+            symbol = getSymbol();
+            if(symbol == '0'){
+                rgb_led_write(25,0,0);
+                printf("symbol not recognize\n");
+            }else{
+                rgb_led_write(0,25,0);
+                buffer.message[buffer.index] = symbol;
+                buffer.index ++; 
+            }
+            programState = WAITING;
+        }
     }
 }
+
+
 
 static void print_task(void *arg){
     (void)arg;
     
     while(1){
     
-        if(print_flag==1){
+        if(programState==SENDING){
 
             printf("%.*s\n", buffer.index, buffer.message);
-            print_flag = 0;
             buffer.index = 0;
+            programState = WAITING;
         }
 
     // Do not remove this
@@ -227,6 +228,8 @@ int main() {
         printf("Print Task creation failed\n");
         return 0;
     }
+
+
 
     // Start the scheduler (never returns)
     vTaskStartScheduler();
