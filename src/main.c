@@ -10,7 +10,7 @@
 
 #include "tkjhat/sdk.h"
 
-#define DEBOUNCE_DELAY 100 //ms
+#define DEBOUNCE_DELAY 200 //ms
 #define DEFAULT_STACK_SIZE 2048
 #define CDC_ITF_TX      1
 
@@ -61,17 +61,20 @@ void confirmPos() {
 void addSpace() {
     
     buffer.message[buffer.index] = ' ';
-    if(buffer.message[buffer.index-1] == ' '){
+    buffer.index ++;
+    if(buffer.message[buffer.index-2] == ' '){
         space_counter++;
     }else {
         space_counter = 0;
     }
     
-    buffer.index ++;
+    
     if(space_counter >= 2){
+        buffer.message[buffer.index-2] = '\n';
         programState = SENDING;
         space_counter = 0;
     }
+    
     
 }
 
@@ -133,13 +136,13 @@ static void print_task(void *arg){
     
         if(programState==SENDING){
 
-            printf("%.*s\n", buffer.index, buffer.message);
+            printf("%.*s", buffer.index, buffer.message);
             buffer.index = 0;
             programState = WAITING;
         }
 
     // Do not remove this
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        //vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
